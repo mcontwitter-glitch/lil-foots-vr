@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Bigfoot Country VR — BIGfoot.biz</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<meta name="description" content="Lil' Foots WebXR forest world — Bigfoot country at dusk.">
+<script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/aframe-blink-controls@0.4.3/dist/aframe-blink-controls.min.js"></script>
+<script src="world.js"></script>
+<style>
+  #hud{position:fixed;left:12px;bottom:12px;z-index:10;font:13px/1.4 system-ui,sans-serif;color:#f3e6c8;
+       background:rgba(20,16,12,.7);padding:10px 14px;border-radius:10px;max-width:340px;pointer-events:auto}
+  #hud b{color:#ffb347} #hud button{margin-top:6px;background:#6b3e1f;color:#fff;border:0;border-radius:6px;padding:5px 10px;cursor:pointer}
+</style>
+</head>
+<body>
+<div id="hud"><b>BIGfoot.biz · Bigfoot Country VR</b><br>
+Desktop: click scene, then WASD to walk, drag mouse to look.<br>
+Quest: tap <b>VR</b> (bottom-right). Left stick = walk, right stick ←/→ = snap turn, right trigger = aim &amp; release to teleport.<br>
+<button id="snd">🔊 Forest sound</button></div>
+
+<a-scene renderer="antialias: true; colorManagement: true; foveationLevel: 1; highRefreshRate: false"
+         fog="type: exponential; color: #3a3550; density: 0.032"
+         background="color: #3a3550"
+         xr-mode-ui="enabled: true" loading-screen="dotsColor: #ffb347; backgroundColor: #1a1622"
+         webxr="optionalFeatures: local-floor, bounded-floor" bigfoot-world>
+  <a-assets timeout="8000">
+    <img id="gold" src="assets/gold.jpg" crossorigin="anonymous">
+    <img id="f0" src="assets/foot0.png"><img id="f1" src="assets/foot1.png"><img id="f2" src="assets/foot2.png">
+    <img id="f3" src="assets/foot3.png"><img id="f4" src="assets/foot4.png"><img id="f5" src="assets/foot5.png">
+    <img id="c0" src="assets/card0.jpg"><img id="c1" src="assets/card1.jpg"><img id="c2" src="assets/card2.jpg">
+    <img id="c3" src="assets/card3.jpg"><img id="c4" src="assets/card4.jpg"><img id="c5" src="assets/card5.jpg">
+  </a-assets>
+
+  <!-- lighting: 1 hemisphere + 1 directional + 1 flickering point (campfire) -->
+  <a-entity light="type: hemisphere; color: #9aa6d8; groundColor: #2c2418; intensity: 0.9"></a-entity>
+  <a-entity light="type: directional; color: #ff9a62; intensity: 0.7" position="-30 12 -40"></a-entity>
+
+  <!-- player rig -->
+  <a-entity id="rig" position="0 0 9" stick-move="speed: 2.6" bounds="radius: 46">
+    <a-entity id="cam" camera position="0 1.6 0" look-controls="pointerLockEnabled: false"
+              wasd-controls="acceleration: 28" bounds="radius: 46; local: true"></a-entity>
+    <a-entity id="lh" oculus-touch-controls="hand: left" ></a-entity>
+    <a-entity id="rh" oculus-touch-controls="hand: right" snap-turn
+              blink-controls="cameraRig: #rig; teleportOrigin: #cam; collisionEntities: .ground; startEvents: triggerdown; endEvents: triggerup; cancelEvents: gripdown; curveShootingSpeed: 9; hitCylinderColor: #ffb347; curveHitColor: #ffb347; landingMaxAngle: 50"></a-entity>
+  </a-entity>
+</a-scene>
+
+<script>
+// Ambient forest sound — synthesized with WebAudio, starts ONLY after a user gesture
+(function(){
+  let ctx=null, on=false, master;
+  function start(){
+    if(ctx){ on=!on; master.gain.setTargetAtTime(on?0.5:0,ctx.currentTime,0.3); return; }
+    ctx=new (window.AudioContext||window.webkitAudioContext)(); on=true;
+    master=ctx.createGain(); master.gain.value=0.5; master.connect(ctx.destination);
+    const len=ctx.sampleRate*4, buf=ctx.createBuffer(1,len,ctx.sampleRate), d=buf.getChannelData(0);
+    let b=0; for(let i=0;i<len;i++){ b=(b+0.02*(Math.random()*2-1))/1.02; d[i]=b*3.5; }
+    const wind=ctx.createBufferSource(); wind.buffer=buf; wind.loop=true;
+    const lp=ctx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=500;
+    const wg=ctx.createGain(); wg.gain.value=0.35; wind.connect(lp).connect(wg).connect(master); wind.start();
+    const lfo=ctx.createOscillator(), lg=ctx.createGain(); lfo.frequency.value=0.08; lg.gain.value=250;
+    lfo.connect(lg).connect(lp.frequency); lfo.start();
+    // crackles
+    const cb=ctx.createBuffer(1,ctx.sampleRate*0.03,ctx.sampleRate), cd=cb.getChannelData(0);
+    for(let i=0;i<cd.length;i++) cd[i]=(Math.random()*2-1)*Math.pow(1-i/cd.length,6);
+    (function crackle(){ if(on){ const s=ctx.createBufferSource(), g=ctx.createGain(), hp=ctx.createBiquadFilter();
+      hp.type='highpass'; hp.frequency.value=1200; s.buffer=cb; g.gain.value=0.15+Math.random()*0.35;
+      s.connect(hp).connect(g).connect(master); s.start(); }
+      setTimeout(crackle, 60+Math.random()*400); })();
+    // owl hoot occasionally
+    (function owl(){ if(on){ [0,0.45].forEach(t=>{ const o=ctx.createOscillator(), g=ctx.createGain(); o.type='sine';
+      o.frequency.setValueAtTime(420,ctx.currentTime+t); o.frequency.linearRampToValueAtTime(380,ctx.currentTime+t+0.35);
+      g.gain.setValueAtTime(0,ctx.currentTime+t); g.gain.linearRampToValueAtTime(0.06,ctx.currentTime+t+0.05);
+      g.gain.linearRampToValueAtTime(0,ctx.currentTime+t+0.38); o.connect(g).connect(master); o.start(ctx.currentTime+t); o.stop(ctx.currentTime+t+0.4); }); }
+      setTimeout(owl, 9000+Math.random()*12000); })();
+  }
+  document.getElementById('snd').addEventListener('click', e=>{ e.stopPropagation(); start(); });
+  document.querySelector('a-scene').addEventListener('enter-vr', ()=>{ if(!ctx) start(); else ctx.resume(); });
+})();
+</script>
+</body>
+</html>
