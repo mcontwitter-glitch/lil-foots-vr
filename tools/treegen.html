@@ -1,0 +1,28 @@
+<!doctype html><html><body><script type="importmap">{"imports":{"three":"../lib/three.module.min.js","three/addons/":"../lib/jsm/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+import { Tree } from './ez-tree.es.js';
+const out={};
+const variants=[['Pine Medium',13977],['Pine Medium',4242],['Pine Large',777],['Pine Small',91]];
+for(const lo of [0,1]) for(const [preset,seed] of variants){
+  const t=new Tree(); t.loadPreset(preset); t.options.seed=seed;
+  // reduce poly a bit for Quest
+  const b=t.options.branch; b.sections[0]=Math.min(b.sections[0],10); b.segments[0]=Math.min(b.segments[0],7); b.sections[1]=Math.min(b.sections[1],6); b.segments[1]=Math.min(b.segments[1],4);
+  if(lo){b.sections[0]=6;b.segments[0]=5;b.sections[1]=3;b.segments[1]=3;t.options.leaves.count=Math.round(t.options.leaves.count*0.4);t.options.leaves.size*=1.45;}
+  t.generate();
+  const bb=new THREE.Box3().setFromObject(t);
+  const s=new THREE.Scene();
+  for(const [name,m] of [['bark',t.branchesMesh],['leaves',t.leavesMesh]]){
+    const g=m.geometry.clone(); const keep={position:1,normal:1,uv:1};
+    for(const k of Object.keys(g.attributes)) if(!keep[k]) g.deleteAttribute(k);
+    if(!g.attributes.normal) g.computeVertexNormals();
+    const mm=new THREE.Mesh(g,new THREE.MeshStandardMaterial({name})); mm.name=name; s.add(mm);
+  }
+  const ab=await new GLTFExporter().parseAsync(s,{binary:true});
+  const bytes=new Uint8Array(ab); let bin=''; for(let i=0;i<bytes.length;i+=32768) bin+=String.fromCharCode(...bytes.subarray(i,i+32768));
+  out[(lo?'lo_':'hi_')+preset+'_'+seed]={b64:btoa(bin),size:bb.getSize(new THREE.Vector3()).toArray(),min:bb.min.toArray(),
+    barkTris:t.branchesMesh.geometry.index.count/3, leafTris:t.leavesMesh.geometry.index.count/3};
+}
+window.TREES=out; window.DONE=true;
+</script></body></html>

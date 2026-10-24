@@ -1,0 +1,10 @@
+<!doctype html><html><body style="margin:0"><script type="importmap">{"imports":{"three":"../lib/three.module.min.js","three/addons/":"../lib/jsm/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import { Tree } from './ez-tree.es.js';
+const r=new THREE.WebGLRenderer({antialias:true});r.setSize(1280,720);document.body.appendChild(r.domElement);
+const s=new THREE.Scene();s.background=new THREE.Color(0xbfc8cc);s.add(new THREE.HemisphereLight(0xffffff,0x445533,2));const d=new THREE.DirectionalLight(0xffffff,2);d.position.set(30,60,20);s.add(d);
+const P=new URLSearchParams(location.search);const names=(P.get('p')||'Pine Medium,Pine Large,Pine Small').split(',');
+names.forEach((n,i)=>{const t=new Tree();t.loadPreset(n);if(P.get('mod')){const b=t.options.branch;b.length[1]*=0.55;b.angle[1]=100;t.options.leaves.size*=0.8;b.children[0]=60;}t.generate();t.position.x=(i-1)*60;s.add(t);});
+const c=new THREE.PerspectiveCamera(50,16/9,1,1000);c.position.set(0,30,150);c.lookAt(0,25,0);r.render(s,c);window.DONE=true;
+</script></body></html>
